@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "856939183618",
+    "project_id": "works-d4f07",
+    "storage_bucket": "works-d4f07.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:856939183618:android:79dd86b7cc1cc41d4f311b",
+        "android_client_info": {
+          "package_name": "com.example.works"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCPnR1ZjmPED0woLSoa3bFnRMSTKCzsnl0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:856939183618:android:79e1500d26b7024c4f311b",
+        "android_client_info": {
+          "package_name": "com.mansour.works"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCPnR1ZjmPED0woLSoa3bFnRMSTKCzsnl0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
