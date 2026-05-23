@@ -36,10 +36,40 @@ class _ChangePhoneDialogState extends State<ChangePhoneDialog> {
   }
 
   void _sendOtp() {
-    if (_completePhoneNumber.isEmpty || _completePhoneNumber.length < 10) {
+    String phoneInput = _phoneController.text.trim();
+    if (phoneInput.isEmpty) {
+      AppComponents.showSnackBar(context, 'يرجى إدخال رقم هاتف', isError: true);
+      return;
+    }
+    if (!RegExp(r'^\d+$').hasMatch(phoneInput)) {
+      AppComponents.showSnackBar(context, 'رقم الهاتف يجب أن يحتوي على أرقام فقط', isError: true);
+      return;
+    }
+    if (phoneInput.startsWith('0') && phoneInput.length != 11) {
+      AppComponents.showSnackBar(context, 'يجب أن يتكون من 11 رقماً', isError: true);
+      return;
+    }
+    if (!phoneInput.startsWith('0') && phoneInput.length != 10) {
+      AppComponents.showSnackBar(context, 'يجب أن يتكون من 10 أرقام', isError: true);
+      return;
+    }
+    if (!phoneInput.startsWith('07') && !phoneInput.startsWith('7')) {
+      AppComponents.showSnackBar(context, 'يجب أن يبدأ بـ 07 أو 7', isError: true);
+      return;
+    }
+    
+    String finalPhone = phoneInput;
+    if (finalPhone.startsWith('0')) {
+      finalPhone = '+964${finalPhone.substring(1)}';
+    } else if (!finalPhone.startsWith('+')) {
+      finalPhone = '+964$finalPhone';
+    }
+
+    if (finalPhone.length < 10) {
       AppComponents.showSnackBar(context, 'يرجى إدخال رقم هاتف صحيح', isError: true);
       return;
     }
+    _completePhoneNumber = finalPhone;
     context.read<AuthCubit>().sendPhoneChangeOtp(_completePhoneNumber);
   }
 
@@ -110,23 +140,11 @@ class _ChangePhoneDialogState extends State<ChangePhoneDialog> {
                       textAlign: TextAlign.center,
                     ),
                     const SizedBox(height: 32),
-                    Directionality(
-                      textDirection: TextDirection.ltr,
-                      child: IntlPhoneField(
-                        controller: _phoneController,
-                        decoration: AppComponents.textFieldDecoration(
-                          hint: 'رقم الهاتف الجديد',
-                          prefixIcon: Icons.phone_rounded,
-                        ),
-                        initialCountryCode: 'EG',
-                        disableLengthCheck: true,
-                        textAlign: TextAlign.left,
-                        languageCode: "ar",
-                        invalidNumberMessage: "رقم هاتف غير صالح",
-                        onChanged: (phoneRaw) {
-                          _completePhoneNumber = phoneRaw.completeNumber;
-                        },
-                      ),
+                    AppComponents.textField(
+                      controller: _phoneController,
+                      hint: 'رقم الهاتف الجديد (مثال: 07...)',
+                      prefixIcon: Icons.phone_rounded,
+                      keyboardType: TextInputType.phone,
                     ),
                     const SizedBox(height: 32),
                     AppComponents.primaryButton(

@@ -35,9 +35,12 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   void _onSendOtp(BuildContext context) {
     if (_formKey.currentState!.validate()) {
-      String phone = _completePhoneNumber;
-      if (phone.isEmpty && _phoneController.text.isNotEmpty) {
-        phone = '+20${_phoneController.text}';
+      String phoneInput = _phoneController.text.trim();
+      String phone = phoneInput;
+      if (phone.startsWith('0')) {
+        phone = '+964${phone.substring(1)}';
+      } else if (!phone.startsWith('+')) {
+        phone = '+964$phone';
       }
       if (phone.length < 10) {
         AppComponents.showSnackBar(context, 'يرجى إدخال رقم هاتف صحيح', isError: true);
@@ -141,35 +144,30 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: 32),
-        Directionality(
-          textDirection: TextDirection.ltr,
-          child: IntlPhoneField(
-            controller: _phoneController,
-            decoration: AppComponents.textFieldDecoration(
-              hint: 'رقم الهاتف',
-              prefixIcon: Icons.phone_android_rounded,
-            ),
-            initialCountryCode: 'EG',
-            textAlign: TextAlign.left,
-            languageCode: "ar",
-            invalidNumberMessage: "رقم هاتف غير صالح",
-            onChanged: (phoneRaw) {
-              setState(() {
-                _completePhoneNumber = phoneRaw.completeNumber;
-              });
-            },
-            onCountryChanged: (country) {
-              setState(() {
-                _completePhoneNumber = '+${country.dialCode}${_phoneController.text}';
-              });
-            },
-            validator: (v) {
-              if (v == null || v.number.isEmpty) {
-                return 'رقم الهاتف إلزامي';
-              }
-              return null;
-            },
-          ),
+        AppComponents.textField(
+          controller: _phoneController,
+          hint: 'رقم الهاتف (مثال: 07...)',
+          prefixIcon: Icons.phone_android_rounded,
+          keyboardType: TextInputType.phone,
+          validator: (v) {
+            if (v == null || v.trim().isEmpty) {
+              return 'رقم الهاتف إلزامي';
+            }
+            String phone = v.trim();
+            if (!RegExp(r'^\d+$').hasMatch(phone)) {
+              return 'يجب أن يحتوي على أرقام فقط';
+            }
+            if (phone.startsWith('0') && phone.length != 11) {
+              return 'يجب أن يتكون من 11 رقماً';
+            }
+            if (!phone.startsWith('0') && phone.length != 10) {
+              return 'يجب أن يتكون من 10 أرقام';
+            }
+            if (!phone.startsWith('07') && !phone.startsWith('7')) {
+              return 'يجب أن يبدأ بـ 07 أو 7';
+            }
+            return null;
+          },
         ),
         const SizedBox(height: 32),
         AppComponents.primaryButton(
@@ -192,7 +190,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         ),
         const SizedBox(height: 12),
         Text(
-          'قمنا بإرسال رسالة نصية قصيرة تحتوي على رمز التحقق إلى الرقم\n$_completePhoneNumber',
+          'قمنا بإرسال رسالة نصية قصيرة تحتوي على رمز التحقق إلى الرقم\n${_phoneController.text}',
           style: GoogleFonts.cairo(fontSize: 14, color: AppColors.textSecondary),
           textAlign: TextAlign.center,
         ),

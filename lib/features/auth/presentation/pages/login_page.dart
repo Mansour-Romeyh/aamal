@@ -38,7 +38,7 @@ class _LoginPageState extends State<LoginPage> {
       } else {
         String phone = contactValue;
         if (phone.startsWith('0')) {
-          phone = '+20${phone.substring(1)}'; // افتراض مصر
+          phone = '+964${phone.substring(1)}'; // افتراض العراق
         } else if (!phone.startsWith('+')) {
           phone = '+$phone';
         }

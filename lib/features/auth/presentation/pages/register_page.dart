@@ -407,10 +407,12 @@ class _RegisterPageState extends State<RegisterPage> {
       String phone = '';
 
       if (_isPhoneRegistration) {
-        // إذا لم يتم تحديث _completePhoneNumber (مثلاً autofill)، نحاول استنتاجه
-        String finalPhone = _completePhoneNumber;
-        if (finalPhone.isEmpty && _phoneController.text.isNotEmpty) {
-          finalPhone = '+20${_phoneController.text}'; // افتراض مصر كدولة افتراضية في التجاوز
+        String phoneInput = _phoneController.text.trim();
+        String finalPhone = phoneInput;
+        if (finalPhone.startsWith('0')) {
+          finalPhone = '+964${finalPhone.substring(1)}';
+        } else if (!finalPhone.startsWith('+')) {
+          finalPhone = '+964$finalPhone';
         }
 
         if (finalPhone.length < 10) {
@@ -764,38 +766,30 @@ class _RegisterPageState extends State<RegisterPage> {
                             const SizedBox(height: 16),
 
                             if (_isPhoneRegistration)
-                              Directionality(
-                                textDirection: TextDirection.ltr,
-                                child: IntlPhoneField(
-                                  controller: _phoneController,
-                                  decoration: AppComponents.textFieldDecoration(
-                                    hint: 'رقم الهاتف',
-                                    prefixIcon: Icons.phone_rounded,
-                                  ),
-                                  initialCountryCode: 'EG',
-                                  disableLengthCheck: true,
-                                  textAlign: TextAlign.left,
-                                  languageCode: "ar",
-                                  invalidNumberMessage: "رقم هاتف غير صالح",
-                                  onChanged: (phoneRaw) {
-                                    setState(() {
-                                      _completePhoneNumber = phoneRaw.completeNumber;
-                                    });
-                                    debugPrint('📱 Phone updated: ${phoneRaw.completeNumber}');
-                                  },
-                                  onCountryChanged: (country) {
-                                    setState(() {
-                                      _completePhoneNumber = '+${country.dialCode}${_phoneController.text}';
-                                    });
-                                    debugPrint('🌍 Country changed: ${country.name} (+${country.dialCode})');
-                                  },
-                                  validator: (v) {
-                                    if (v == null || v.number.isEmpty) {
-                                      return 'رقم الهاتف إلزامي';
-                                    }
-                                    return null;
-                                  },
-                                ),
+                              AppComponents.textField(
+                                controller: _phoneController,
+                                hint: 'رقم الهاتف (مثال: 07...)',
+                                prefixIcon: Icons.phone_rounded,
+                                keyboardType: TextInputType.phone,
+                                validator: (v) {
+                                  if (v == null || v.trim().isEmpty) {
+                                    return 'رقم الهاتف إلزامي';
+                                  }
+                                  String phone = v.trim();
+                                  if (!RegExp(r'^\d+$').hasMatch(phone)) {
+                                    return 'يجب أن يحتوي على أرقام فقط';
+                                  }
+                                  if (phone.startsWith('0') && phone.length != 11) {
+                                    return 'يجب أن يتكون من 11 رقماً';
+                                  }
+                                  if (!phone.startsWith('0') && phone.length != 10) {
+                                    return 'يجب أن يتكون من 10 أرقام';
+                                  }
+                                  if (!phone.startsWith('07') && !phone.startsWith('7')) {
+                                    return 'يجب أن يبدأ بـ 07 أو 7';
+                                  }
+                                  return null;
+                                },
                               )
                             else
                               AppComponents.textField(

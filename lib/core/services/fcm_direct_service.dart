@@ -295,8 +295,9 @@ class FcmDirectService {
       if (fcmToken != null && fcmToken.isNotEmpty) allTokens.add(fcmToken);
       allTokens.addAll(fcmTokens);
 
-      // 3. حفظ الإشعار في القائمة التاريخية (فقط للإشعارات غير الشات)
-      if (!isActuallyActive && !isChatType) {
+      // 3. حفظ الإشعار في الفايرستور لتقوم الـ Cloud Function بإرساله
+      // (حتى للشات، لأن Cloud Function تعتمد على هذا المستند للإرسال، ومركز الإشعارات سيتجاهله)
+      if (!isActuallyActive) {
         final notifRef = _firestore.collection('notifications').doc();
         batch.set(notifRef, {
           'targetUserId': targetUserId,
