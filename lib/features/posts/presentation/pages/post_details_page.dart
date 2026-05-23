@@ -40,7 +40,7 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
   PostModel? _post;
   bool _isLoading = false;
   String? _error;
-  bool _showTitle = false;
+  final ValueNotifier<bool> _showTitleNotifier = ValueNotifier(false);
 
   @override
   void initState() {
@@ -63,9 +63,9 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
   void _syncCollapsedTitle() {
     if (!_scrollController.hasClients) return;
     final o = _scrollController.offset;
-    final nextCollapsed = _showTitle ? (o > 175) : (o > 220);
-    if (nextCollapsed != _showTitle) {
-      setState(() => _showTitle = nextCollapsed);
+    final nextCollapsed = _showTitleNotifier.value ? (o > 175) : (o > 220);
+    if (nextCollapsed != _showTitleNotifier.value) {
+      _showTitleNotifier.value = nextCollapsed;
     }
   }
 
@@ -133,6 +133,7 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
   @override
   void dispose() {
     _scrollController.dispose();
+    _showTitleNotifier.dispose();
     super.dispose();
   }
 
@@ -222,19 +223,22 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
                 ),
                 onPressed: () => context.pop(),
               ),
-              title: AnimatedOpacity(
-                duration: const Duration(milliseconds: 200),
-                opacity: _showTitle ? 1.0 : 0.0,
-                child: Text(
-                  post.title,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.cairo(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w700,
-                    fontSize: 16,
+              title: ValueListenableBuilder<bool>(
+                valueListenable: _showTitleNotifier,
+                builder: (context, showTitle, child) => AnimatedOpacity(
+                  duration: const Duration(milliseconds: 200),
+                  opacity: showTitle ? 1.0 : 0.0,
+                  child: Text(
+                    post.title,
+                    textAlign: TextAlign.center,
+                    style: GoogleFonts.cairo(
+                      color: Colors.white,
+                      fontWeight: FontWeight.w700,
+                      fontSize: 16,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               centerTitle: true,
@@ -311,15 +315,18 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
                       bottom: 24,
                       left: 24,
                       right: 24,
-                      child: AnimatedOpacity(
-                        duration: const Duration(milliseconds: 200),
-                        opacity: _showTitle ? 0.0 : 1.0,
-                        child: Text(
-                          post.title,
-                          style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 24, height: 1.2),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.5, end: 0),
+                      child: ValueListenableBuilder<bool>(
+                        valueListenable: _showTitleNotifier,
+                        builder: (context, showTitle, child) => AnimatedOpacity(
+                          duration: const Duration(milliseconds: 200),
+                          opacity: showTitle ? 0.0 : 1.0,
+                          child: Text(
+                            post.title,
+                            style: GoogleFonts.cairo(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 24, height: 1.2),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                          ).animate().fadeIn(delay: 200.ms).slideY(begin: 0.5, end: 0),
+                        ),
                       ),
                     ),
                   ],
@@ -864,40 +871,78 @@ class _PostDetailsPageState extends State<PostDetailsPage> {
     showDialog(
       context: context,
       builder: (dialogContext) => AlertDialog(
-        title: Text('تقديم عرض سعر', style: GoogleFonts.cairo(fontWeight: FontWeight.bold)),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
+        backgroundColor: Colors.white,
+        surfaceTintColor: Colors.white,
+        titlePadding: const EdgeInsets.only(top: 24, left: 24, right: 24, bottom: 8),
+        title: Column(
           children: [
-            AppComponents.textField(
-              hint: 'سعر العرض (ج.م)',
-              controller: priceController,
-              keyboardType: TextInputType.number,
-              prefixIcon: Icons.money_rounded,
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.local_offer_rounded, color: AppColors.primary, size: 32),
             ),
             const SizedBox(height: 16),
-            AppComponents.textField(
-              hint: 'رسالة إضافية (اختياري)',
-              controller: commentController,
-              maxLines: 3,
-              prefixIcon: Icons.comment_outlined,
+            Text(
+              'تقديم عرض سعر',
+              style: GoogleFonts.cairo(
+                fontWeight: FontWeight.w900,
+                fontSize: 20,
+                color: AppColors.textPrimary,
+              ),
+              textAlign: TextAlign.center,
             ),
           ],
         ),
-        actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(28)),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'الرجاء إدخال السعر المناسب لهذا الطلب',
+                style: GoogleFonts.cairo(color: AppColors.textSecondary, fontSize: 13),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              AppComponents.textField(
+                hint: 'سعر العرض (ج.م)',
+                controller: priceController,
+                keyboardType: TextInputType.number,
+                prefixIcon: Icons.money_rounded,
+              ),
+              const SizedBox(height: 16),
+              AppComponents.textField(
+                hint: 'رسالة إضافية (اختياري)',
+                controller: commentController,
+                maxLines: 3,
+                prefixIcon: Icons.comment_outlined,
+              ),
+            ],
+          ),
+        ),
+        actionsPadding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
         actions: [
           Row(
             children: [
               Expanded(
                 child: TextButton(
                   onPressed: () => Navigator.pop(dialogContext),
-                  child: Text('إلغاء', style: GoogleFonts.cairo(color: AppColors.textSecondary)),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: Text('إلغاء', style: GoogleFonts.cairo(color: AppColors.textSecondary, fontWeight: FontWeight.bold)),
                 ),
               ),
+              const SizedBox(width: 8),
               Expanded(
+                flex: 2,
                 child: AppComponents.primaryButton(
-                  label: 'إرسال',
-                  backgroundColor: AppColors.secondary,
+                  label: 'إرسال العرض',
+                  backgroundColor: AppColors.primary,
                   onPressed: () {
                     final price = double.tryParse(priceController.text);
                     if (price == null || price <= 0) {

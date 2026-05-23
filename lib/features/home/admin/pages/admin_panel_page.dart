@@ -791,11 +791,62 @@ class _UsersTab extends StatefulWidget {
 
 class _UsersTabState extends State<_UsersTab> {
   String _filter = 'all';
+  final TextEditingController _searchController = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Column(
       children: [
+        // ── Search Field
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+          child: TextField(
+            controller: _searchController,
+            onChanged: (value) => setState(() {}),
+            style: GoogleFonts.cairo(fontSize: 14),
+            decoration: InputDecoration(
+              hintText: 'البحث عن طريق الاسم، البريد الإلكتروني، أو رقم الهاتف...',
+              hintStyle: GoogleFonts.cairo(
+                color: AppColors.textHint,
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+              ),
+              prefixIcon: const Icon(
+                Icons.search_rounded,
+                color: AppColors.textHint,
+              ),
+              filled: true,
+              fillColor: Colors.white,
+              contentPadding: const EdgeInsets.symmetric(horizontal: 16),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: AppColors.border.withOpacity(0.5),
+                ),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: BorderSide(
+                  color: AppColors.border.withOpacity(0.5),
+                ),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(16),
+                borderSide: const BorderSide(
+                  color: AppColors.primary,
+                  width: 1.5,
+                ),
+              ),
+            ),
+          ),
+        ),
+
         // ── Filter Chips
         Container(
           padding: const EdgeInsets.fromLTRB(20, 14, 20, 10),
@@ -849,6 +900,16 @@ class _UsersTabState extends State<_UsersTab> {
                 users = users.where((u) => !u.isActive).toList();
               } else if (_filter != 'all') {
                 users = users.where((u) => u.role == _filter).toList();
+              }
+
+              final searchQuery = _searchController.text.trim().toLowerCase();
+              if (searchQuery.isNotEmpty) {
+                users = users.where((u) {
+                  final nameMatch = u.name.toLowerCase().contains(searchQuery);
+                  final emailMatch = u.email.toLowerCase().contains(searchQuery);
+                  final phoneMatch = u.phone?.toLowerCase().contains(searchQuery) ?? false;
+                  return nameMatch || emailMatch || phoneMatch;
+                }).toList();
               }
               if (users.isEmpty) {
                 return Center(
@@ -2514,10 +2575,7 @@ class _FullReportCard extends StatelessWidget {
                     'حل البلاغ',
                     Icons.check_rounded,
                     AppColors.success,
-                    () => sl<ReportRepository>().updateReportStatus(
-                      report.id,
-                      'resolved',
-                    ),
+                    () => _showResolveDialog(context, report),
                     filled: true,
                   ),
                 ),
@@ -2588,6 +2646,146 @@ class _FullReportCard extends StatelessWidget {
       if (context.mounted) {
         Navigator.pop(context);
         AppComponents.showSnackBar(context, 'خطأ: $e', isError: true);
+      }
+    }
+  }
+
+  void _showResolveDialog(BuildContext context, ReportModel report) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (ctx) => Padding(
+        padding: const EdgeInsets.all(24.0),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              'حل البلاغ',
+              style: GoogleFonts.cairo(
+                fontSize: 18,
+                fontWeight: FontWeight.w900,
+                color: AppColors.textPrimary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'اختر الإجراء المناسب لحل هذا البلاغ',
+              style: GoogleFonts.cairo(
+                fontSize: 14,
+                color: AppColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _resolveAndBanByRole(context, report, FirebaseConstants.roleClient, 'تم تقييد حساب العميل وحل البلاغ');
+              },
+              icon: const Icon(Icons.block_rounded, size: 20),
+              label: Text(
+                'تقييد حساب العميل',
+                style: GoogleFonts.cairo(fontWeight: FontWeight.w800),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error.withOpacity(0.1),
+                foregroundColor: AppColors.error,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            ElevatedButton.icon(
+              onPressed: () {
+                Navigator.pop(ctx);
+                _resolveAndBanByRole(context, report, FirebaseConstants.roleArtisan, 'تم تقييد حساب الحرفي وحل البلاغ');
+              },
+              icon: const Icon(Icons.block_rounded, size: 20),
+              label: Text(
+                'تقييد حساب الحرفي',
+                style: GoogleFonts.cairo(fontWeight: FontWeight.w800),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: Colors.white,
+                elevation: 0,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextButton(
+              onPressed: () {
+                Navigator.pop(ctx);
+                sl<ReportRepository>().updateReportStatus(report.id, 'resolved');
+                AppComponents.showSnackBar(context, 'تم حل البلاغ بدون حظر');
+              },
+              child: Text(
+                'حل البلاغ فقط',
+                style: GoogleFonts.cairo(
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _resolveAndBanByRole(BuildContext context, ReportModel report, String targetRole, String successMsg) async {
+    try {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
+
+      final authRepo = sl<AuthRepository>();
+      
+      // جلب بيانات الطرفين لتحديد دور كل منهما بشكل ديناميكي
+      final reporter = await authRepo.getUserById(report.reporterId);
+      final reported = await authRepo.getUserById(report.reportedId);
+      
+      String? targetId;
+      if (reporter.role == targetRole) {
+        targetId = reporter.uid;
+      } else if (reported.role == targetRole) {
+        targetId = reported.uid;
+      }
+
+      if (targetId == null) {
+        if (context.mounted) {
+          Navigator.pop(context); // إغلاق التحميل
+          AppComponents.showSnackBar(context, 'خطأ: لم يتم العثور على حساب بهذا الدور في البلاغ', isError: true);
+        }
+        return;
+      }
+
+      // تقييد حساب المستخدم
+      await authRepo.toggleUserActive(targetId, false);
+      // حل البلاغ
+      await sl<ReportRepository>().updateReportStatus(report.id, 'resolved');
+      
+      if (context.mounted) {
+        Navigator.pop(context); // إغلاق التحميل
+        AppComponents.showSnackBar(context, successMsg);
+      }
+    } catch (e) {
+      if (context.mounted) {
+        Navigator.pop(context); // إغلاق التحميل إذا كان مفتوحاً
+        AppComponents.showSnackBar(context, 'حدث خطأ أثناء تقييد الحساب: $e', isError: true);
       }
     }
   }
