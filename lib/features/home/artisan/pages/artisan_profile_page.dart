@@ -21,6 +21,7 @@ import '../../../../app/di/injection_container.dart';
 import '../../../posts/data/repositories/post_repository.dart';
 import '../../../chat/data/repositories/chat_repository.dart';
 import '../../../auth/presentation/widgets/change_phone_dialog.dart';
+import '../../../../app/widgets/map_location_picker.dart';
 
 class ArtisanProfilePage extends StatefulWidget {
   final UserModel artisan;
@@ -1102,6 +1103,43 @@ class _ArtisanProfilePageState extends State<ArtisanProfilePage> {
     }
   }
 
+  Future<void> _changeLocation(BuildContext context) async {
+    final result = await MapLocationPicker.show(
+      context,
+      initialLat: widget.artisan.latitude,
+      initialLng: widget.artisan.longitude,
+      initialAddress: widget.artisan.address,
+    );
+
+    if (result != null && context.mounted) {
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => const Center(child: CircularProgressIndicator()),
+      );
+      try {
+        await context.read<AuthCubit>().updateLocation(
+              result.address,
+              result.latitude,
+              result.longitude,
+            );
+        if (context.mounted) {
+          Navigator.pop(context); // close dialog
+          AppComponents.showSnackBar(context, 'تم تحديث الموقع بنجاح');
+        }
+      } catch (e) {
+        if (context.mounted) {
+          Navigator.pop(context); // close dialog
+          AppComponents.showSnackBar(
+            context,
+            e.toString().replaceAll('Exception: ', ''),
+            isError: true,
+          );
+        }
+      }
+    }
+  }
+
   void _editBio(BuildContext context) {
     final bioController = TextEditingController(text: artisan.bio);
     showModalBottomSheet(
@@ -1350,6 +1388,41 @@ class _ArtisanProfilePageState extends State<ArtisanProfilePage> {
                 : 'غير متوفر',
             trailing: GestureDetector(
               onTap: () => ChangePhoneDialog.show(context),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 10,
+                  vertical: 5,
+                ),
+                decoration: BoxDecoration(
+                  color: AppColors.primary.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const SizedBox(width: 4),
+                    Text(
+                      'تغيير',
+                      style: GoogleFonts.cairo(
+                        fontSize: 11,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.primary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          const Divider(height: 32),
+          _buildProfileOption(
+            Icons.location_on_outlined,
+            'الموقع',
+            widget.artisan.address.isNotEmpty
+                ? widget.artisan.address
+                : 'غير متوفر',
+            trailing: GestureDetector(
+              onTap: () => _changeLocation(context),
               child: Container(
                 padding: const EdgeInsets.symmetric(
                   horizontal: 10,

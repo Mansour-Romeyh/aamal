@@ -17,6 +17,8 @@ import 'package:works/core/services/notification_service.dart';
 import 'package:works/features/auth/data/repositories/auth_repository.dart';
 import 'package:works/app/di/injection_container.dart';
 import 'package:works/core/constants/firebase_constants.dart';
+import 'package:url_launcher/url_launcher.dart';
+import 'package:works/app/widgets/map_location_picker.dart';
 
 import '../bloc/conversations_cubit.dart' show ConversationsCubit;
 
@@ -302,6 +304,50 @@ class _ChatPageState extends State<ChatPage> {
     });
   }
 
+  Future<void> _sendLocation() async {
+    if (_isAdminMode && !_isSupportMode) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            '⚠️ وضع المعاينة فقط: لا يمكنك الإرسال',
+          ),
+          backgroundColor: Colors.orange,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      return;
+    }
+
+    final result = await MapLocationPicker.show(context);
+    if (result != null && mounted) {
+      final text = result.address.isNotEmpty ? result.address : 'موقعي الجغرافي';
+      
+      final authState = context.read<AuthCubit>().state;
+      UserModel? currentUser;
+      if (authState is AuthAuthenticated) {
+        currentUser = authState.user;
+      }
+      final finalSenderId = _isSupportMode
+          ? FirebaseConstants.supportId
+          : (currentUser?.uid ?? '');
+      final finalSenderName = _isSupportMode
+          ? 'الدعم الفني'
+          : (currentUser?.name ?? 'مستخدم');
+
+      _chatCubit.sendMessage(
+        conversationId: widget.conversationId,
+        senderId: finalSenderId,
+        senderName: finalSenderName,
+        text: '📍 ' + text,
+        receiverId: widget.otherUserId,
+        isLocation: true,
+        latitude: result.latitude,
+        longitude: result.longitude,
+      );
+      _scrollToBottom();
+    }
+  }
+
   String _formatLastSeen(DateTime? lastSeen, DateTime? createdAt) {
     final targetDate = lastSeen ?? createdAt;
     if (targetDate == null) return 'نشط منذ فترة';
@@ -487,6 +533,29 @@ class _ChatPageState extends State<ChatPage> {
             )
           : _buildChatHeader(),
       actions: [
+        StreamBuilder<UserModel>(
+          stream: _otherUserStream,
+          builder: (context, snapshot) {
+            final user = snapshot.data;
+            if (user == null || user.phone.isEmpty || widget.otherUserId == FirebaseConstants.supportId) {
+              return const SizedBox.shrink();
+            }
+            return IconButton(
+              icon: const Icon(Icons.call_rounded, color: AppColors.primary, size: 22),
+              tooltip: 'اتصال',
+              onPressed: () async {
+                final Uri url = Uri(scheme: 'tel', path: user.phone);
+                if (await canLaunchUrl(url)) {
+                  await launchUrl(url);
+                } else {
+                  if (context.mounted) {
+                    AppComponents.showSnackBar(context, 'لا يمكن فتح تطبيق الاتصال', isError: true);
+                  }
+                }
+              },
+            );
+          },
+        ),
         if (!widget.isAdminView &&
             !widget.isSupportView &&
             widget.otherUserId != FirebaseConstants.supportId &&
@@ -1088,6 +1157,12 @@ class _ChatPageState extends State<ChatPage> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
+        // Location Button
+        IconButton(
+          onPressed: _sendLocation,
+          icon: const Icon(Icons.location_on_outlined, color: AppColors.primary),
+          tooltip: 'إرسال الموقع',
+        ),
         // TextField Container
         Expanded(
           child: Container(
@@ -1250,16 +1325,62 @@ class _MessageBubble extends StatelessWidget {
                 ),
               ),
 
-            // نص الرسالة
-            Text(
-              message.text,
-              style: GoogleFonts.cairo(
-                color: isMine ? Colors.white : AppColors.textPrimary,
-                fontSize: 14,
-                height: 1.5,
+            // نص الرسالة أو عرض الموقع
+            if (message.isLocation && message.latitude != null && message.longitude != null)
+              GestureDetector(
+                onTap: () async {
+                  final url = Uri.parse('https://www.google.com/maps/search/?api=1&query=${message.latitude},${message.longitude}');
+                  if (await canLaunchUrl(url)) {
+                    await launchUrl(url, mode: LaunchMode.externalApplication);
+                  } else {
+                    if (context.mounted) {
+                      AppComponents.showSnackBar(context, 'لا يمكن فتح الخريطة', isError: true);
+                    }
+                  }
+                },
+                child: Container(
+                  margin: const EdgeInsets.only(top: 4, bottom: 4),
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: isMine ? Colors.white.withValues(alpha: 0.2) : AppColors.primary.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.map_rounded,
+                        color: isMine ? Colors.white : AppColors.primary,
+                        size: 24,
+                      ),
+                      const SizedBox(width: 8),
+                      Flexible(
+                        child: Text(
+                          message.text,
+                          style: GoogleFonts.cairo(
+                            color: isMine ? Colors.white : AppColors.textPrimary,
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                            decoration: TextDecoration.underline,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              )
+            else
+              Text(
+                message.text,
+                style: GoogleFonts.cairo(
+                  color: isMine ? Colors.white : AppColors.textPrimary,
+                  fontSize: 14,
+                  height: 1.5,
+                ),
+                textDirection: TextDirection.rtl,
               ),
-              textDirection: TextDirection.rtl,
-            ),
 
             const SizedBox(height: 4),
 

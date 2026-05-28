@@ -8,6 +8,9 @@ class MessageModel extends Equatable {
   final String text;
   final DateTime timestamp;
   final bool isRead;
+  final bool isLocation;
+  final double? latitude;
+  final double? longitude;
 
   const MessageModel({
     required this.id,
@@ -15,6 +18,9 @@ class MessageModel extends Equatable {
     required this.text,
     required this.timestamp,
     this.isRead = false,
+    this.isLocation = false,
+    this.latitude,
+    this.longitude,
   });
 
   factory MessageModel.fromFirestore(DocumentSnapshot doc) {
@@ -27,6 +33,9 @@ class MessageModel extends Equatable {
           ? (data['timestamp'] as Timestamp).toDate()
           : DateTime.now(),
       isRead: data['isRead'] ?? false,
+      isLocation: data['isLocation'] ?? false,
+      latitude: (data['latitude'] as num?)?.toDouble(),
+      longitude: (data['longitude'] as num?)?.toDouble(),
     );
   }
 
@@ -36,11 +45,14 @@ class MessageModel extends Equatable {
       'text': text,
       'timestamp': Timestamp.fromDate(timestamp),
       'isRead': isRead,
+      'isLocation': isLocation,
+      if (latitude != null) 'latitude': latitude,
+      if (longitude != null) 'longitude': longitude,
     };
   }
 
   @override
-  List<Object?> get props => [id, senderId, text, timestamp, isRead];
+  List<Object?> get props => [id, senderId, text, timestamp, isRead, isLocation, latitude, longitude];
 }
 
 /// نموذج المحادثة

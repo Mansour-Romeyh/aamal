@@ -58,7 +58,7 @@ class NotificationConstants {
   static const String typeArtisanApproval = 'artisan_approval';
 
   // السلوك
-  static const double artisanGeoRadiusKm = 20.0;
+  static const double artisanGeoRadiusKm = 30.0;
   /// مهلة انتظار جلسة Firebase بعد الإقلاع (توازن بين الأجهزة البطيئة ومدة الشاشة)
   static const Duration authRestoreTimeout = Duration(seconds: 12);
 }

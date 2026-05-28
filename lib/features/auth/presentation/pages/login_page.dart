@@ -193,10 +193,10 @@ class _LoginPageState extends State<LoginPage> {
             
             AppComponents.textField(
               controller: _contactController,
-              hint: 'البريد الإلكتروني أو الهاتف',
-              prefixIcon: Icons.email_outlined,
-              keyboardType: TextInputType.emailAddress,
-              validator: (v) => (v == null || v.trim().isEmpty) ? 'يرجى إدخال الحساب أولاً' : null,
+              hint: 'رقم الهاتف',
+              prefixIcon: Icons.phone_rounded,
+              keyboardType: TextInputType.phone,
+              validator: (v) => (v == null || v.trim().isEmpty) ? 'يرجى إدخال رقم الهاتف أولاً' : null,
             ),
             
             const SizedBox(height: 16),

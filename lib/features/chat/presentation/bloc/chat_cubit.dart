@@ -142,6 +142,9 @@ class ChatCubit extends Cubit<ChatState> {
     required String senderName,
     required String text,
     required String receiverId,
+    bool isLocation = false,
+    double? latitude,
+    double? longitude,
   }) async {
     // دعم فني يقدر يرسل حتى لو المحادثة "مغلقة" (مثلاً للمتابعة)
     if (_isConversationClosed && senderId != FirebaseConstants.supportId)
@@ -161,6 +164,9 @@ class ChatCubit extends Cubit<ChatState> {
         senderId: senderId,
         receiverId: receiverId,
         text: text,
+        isLocation: isLocation,
+        latitude: latitude,
+        longitude: longitude,
       );
 
       // ── إرسال الإشعارات ──

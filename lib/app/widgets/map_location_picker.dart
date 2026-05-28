@@ -59,14 +59,15 @@ class MapLocationPicker extends StatefulWidget {
 class _MapLocationPickerState extends State<MapLocationPicker> {
   GoogleMapController? _mapController;
 
-  // الإحداثيات الافتراضية: القاهرة مصر
-  static const LatLng _defaultCenter = LatLng(30.0444, 31.2357);
+  // الإحداثيات الافتراضية: بغداد، العراق
+  static const LatLng _defaultCenter = LatLng(33.3152, 44.3661);
 
   LatLng _markerPosition = _defaultCenter;
   String _currentAddress = 'جارٍ تحديد العنوان...';
   bool _isLoadingLocation = false;
   bool _isLoadingAddress = false;
   bool _mapReady = false;
+  bool _isLocationInteracted = false;
 
   @override
   void initState() {
@@ -77,6 +78,7 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
       if (widget.initialAddress == null) {
         _reverseGeocode(_markerPosition);
       }
+      _isLocationInteracted = true;
     } else {
       // سيتم جلب الموقع بعد تهيئة الخريطة
       WidgetsBinding.instance.addPostFrameCallback((_) => _goToCurrentLocation());
@@ -111,7 +113,12 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
       );
 
       final newPos = LatLng(position.latitude, position.longitude);
-      if (mounted) setState(() => _markerPosition = newPos);
+      if (mounted) {
+        setState(() {
+          _markerPosition = newPos;
+          _isLocationInteracted = true;
+        });
+      }
 
       _mapController?.animateCamera(
         CameraUpdate.newCameraPosition(
@@ -216,6 +223,9 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
 
   void _onCameraMove(CameraPosition position) {
     _markerPosition = position.target;
+    if (!_isLocationInteracted) {
+      setState(() => _isLocationInteracted = true);
+    }
   }
 
   void _onCameraIdle() {
@@ -457,7 +467,7 @@ class _MapLocationPickerState extends State<MapLocationPicker> {
                     width: double.infinity,
                     height: 54,
                     child: ElevatedButton.icon(
-                      onPressed: _isLoadingAddress ? null : _confirmLocation,
+                      onPressed: (!_isLocationInteracted || _isLoadingAddress) ? null : _confirmLocation,
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppColors.primary,
                         disabledBackgroundColor: AppColors.primary.withOpacity(0.4),

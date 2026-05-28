@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:http/http.dart' as http;
@@ -397,7 +398,7 @@ class FcmDirectService {
     }
   }
 
-  // ── إرسال لكل الحرفيين بتخصص معين (مع فلترة جغرافية) ──────────────────
+  // ── إرسال لكل الحرفيين بتخصص معين (مع فلترة جغرافية 30 كم) ──────────────────
   Future<void> sendToArtisansBySpecialty({
     required String specialty,
     required String title,
@@ -406,43 +407,98 @@ class FcmDirectService {
     double? clientLng,
     Map<String, String>? data,
   }) async {
-    // نطاق الإشعار: 10 كيلومتر
+    // نطاق الإشعار الجغرافي: 30 كيلومتر
     const double maxDistanceKm = NotificationConstants.artisanGeoRadiusKm;
 
     try {
       final collection = _firestore.collection(FirebaseConstants.usersCollection);
       List<DocumentSnapshot> targetDocs = [];
 
-      // ── الفلترة الجغرافية باستخدام GeoFlutterFire Plus ─────────────────────────────────
+      debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+      debugPrint('📢 sendToArtisansBySpecialty START');
+      debugPrint('   Specialty: $specialty');
+      debugPrint('   Client Location: ($clientLat, $clientLng)');
+      debugPrint('   Geo Radius: $maxDistanceKm km');
+
+      // ── تشخيص: عرض إحداثيات كل حرفي لمعرفة سبب الاستبعاد ───────────────
+      final allQuery = await collection
+          .where('role', isEqualTo: FirebaseConstants.roleArtisan)
+          .where('specialty', isEqualTo: specialty)
+          .where('isActive', isEqualTo: true)
+          .get();
+      debugPrint('   📊 Total active artisans: ${allQuery.docs.length}');
+      for (final doc in allQuery.docs) {
+        final d = doc.data();
+        final lat = d['latitude'];
+        final lng = d['longitude'];
+        final geo = d['geo'] as Map<String, dynamic>?;
+        GeoPoint? geoPoint;
+        String geoHash = 'N/A';
+        if (geo != null) {
+          geoPoint = geo['geopoint'] as GeoPoint?;
+          geoHash = (geo['geohash'] ?? 'N/A').toString();
+        }
+        String distStr = 'N/A';
+        if (clientLat != null && clientLng != null && geoPoint != null) {
+          final dist = _haversineKm(clientLat, clientLng, geoPoint.latitude, geoPoint.longitude);
+          distStr = '${dist.toStringAsFixed(1)} km';
+        }
+        debugPrint('      ├─ ${d['name']} (${doc.id})');
+        debugPrint('      │  lat/lng fields: ($lat, $lng)');
+        debugPrint('      │  geo.geopoint:   (${geoPoint?.latitude}, ${geoPoint?.longitude})');
+        debugPrint('      │  geo.geohash:    $geoHash');
+        debugPrint('      │  distance:       $distStr');
+      }
+
+      // ── الفلترة الجغرافية باستخدام GeoFlutterFire Plus ─────────────────────────
       if (clientLat != null && clientLng != null) {
         final geoCenter = GeoFirePoint(GeoPoint(clientLat, clientLng));
         final geoRef = GeoCollectionReference<Map<String, dynamic>>(collection);
         
-        targetDocs = await geoRef.subscribeWithin(
-          center: geoCenter,
-          radiusInKm: maxDistanceKm,
-          field: 'geo',
-          geopointFrom: (data) => (data['geo'] as Map<String, dynamic>)['geopoint'] as GeoPoint,
-          queryBuilder: (query) => query
-              .where('role', isEqualTo: FirebaseConstants.roleArtisan)
-              .where('specialty', isEqualTo: specialty)
-              .where('isActive', isEqualTo: true),
-        ).first;
+        try {
+          targetDocs = await geoRef.subscribeWithin(
+            center: geoCenter,
+            radiusInKm: maxDistanceKm,
+            field: 'geo',
+            geopointFrom: (snapData) {
+              final geo = snapData['geo'];
+              if (geo == null || geo is! Map<String, dynamic>) {
+                throw Exception('Missing geo field');
+              }
+              return geo['geopoint'] as GeoPoint;
+            },
+            queryBuilder: (query) => query
+                .where('role', isEqualTo: FirebaseConstants.roleArtisan)
+                .where('specialty', isEqualTo: specialty)
+                .where('isActive', isEqualTo: true),
+          ).first;
+        } catch (geoError) {
+          debugPrint('⚠️ GeoQuery failed: $geoError — falling back to non-geo query');
+          targetDocs = [];
+        }
+
+        debugPrint('   📍 Artisans found within ${maxDistanceKm}km: ${targetDocs.length}');
+
+        // ── Fallback: لو الفلتر الجغرافي ما لقى حد، نبعت لكل الحرفيين بنفس التخصص ──
+        if (targetDocs.isEmpty) {
+          debugPrint('   ⚠️ Geo filter returned 0 results. Falling back to ALL artisans with this specialty.');
+          targetDocs = allQuery.docs;
+        }
       } else {
-        final querySnapshot = await collection
-            .where('role', isEqualTo: FirebaseConstants.roleArtisan)
-            .where('specialty', isEqualTo: specialty)
-            .where('isActive', isEqualTo: true)
-            .get();
-        targetDocs = querySnapshot.docs;
+        debugPrint('   📍 No client coordinates — sending to ALL artisans with this specialty');
+        targetDocs = allQuery.docs;
       }
 
+      debugPrint('   🎯 Final target count: ${targetDocs.length}');
+
+      // ── إرسال الإشعار لكل حرفي ──────────────────────────────────────
+      int sentCount = 0;
       for (final doc in targetDocs) {
         final artisanData = doc.data() as Map<String, dynamic>?;
         if (artisanData == null) continue;
 
-        // نمر عبر نفس مسار الإرسال الموحّد لضمان ظهور Push خارجي
-        // مع حفظ Document في notifications (category=order, isRead=false).
+        debugPrint('   📤 Sending to artisan: ${doc.id} (${artisanData['name']})');
+
         await sendToUser(
           targetUserId: doc.id,
           title: title,
@@ -452,10 +508,26 @@ class FcmDirectService {
             'type': data?['type'] ?? NotificationConstants.typeNewPost,
           },
         );
+        sentCount++;
       }
+
+      debugPrint('   ✅ Notifications sent to $sentCount artisans');
+      debugPrint('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
     } catch (e) {
       debugPrint('🚨 sendToArtisansBySpecialty Error: $e');
     }
+  }
+
+  /// Haversine formula لحساب المسافة بين نقطتين بالكيلومتر
+  static double _haversineKm(double lat1, double lon1, double lat2, double lon2) {
+    const R = 6371.0;
+    final dLat = (lat2 - lat1) * (3.141592653589793 / 180);
+    final dLon = (lon2 - lon1) * (3.141592653589793 / 180);
+    final a = sin(dLat / 2) * sin(dLat / 2) +
+        cos(lat1 * (3.141592653589793 / 180)) * cos(lat2 * (3.141592653589793 / 180)) *
+        sin(dLon / 2) * sin(dLon / 2);
+    final c = 2 * atan2(sqrt(a), sqrt(1 - a));
+    return R * c;
   }
 
   String _resolveNotificationCategory(String? type) {

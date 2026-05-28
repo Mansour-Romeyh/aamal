@@ -23,7 +23,6 @@ class RegisterPage extends StatefulWidget {
 class _RegisterPageState extends State<RegisterPage> {
   final _formKey = GlobalKey<FormState>();
   final _nameController = TextEditingController();
-  final _emailController = TextEditingController();
   final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
@@ -33,8 +32,6 @@ class _RegisterPageState extends State<RegisterPage> {
   File? _profileImage;
   File? _idCardImage;
   File? _selfieImage;
-  String _completePhoneNumber = ''; 
-  bool _isPhoneRegistration = true;
 
   String _selectedRole = 'client';
   String _selectedSpecialty = '';
@@ -45,7 +42,6 @@ class _RegisterPageState extends State<RegisterPage> {
   @override
   void dispose() {
     _nameController.dispose();
-    _emailController.dispose();
     _phoneController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
@@ -403,29 +399,21 @@ class _RegisterPageState extends State<RegisterPage> {
           return;
         }
       }
-      String email = '';
-      String phone = '';
-
-      if (_isPhoneRegistration) {
-        String phoneInput = _phoneController.text.trim();
-        String finalPhone = phoneInput;
-        if (finalPhone.startsWith('0')) {
-          finalPhone = '+964${finalPhone.substring(1)}';
-        } else if (!finalPhone.startsWith('+')) {
-          finalPhone = '+964$finalPhone';
-        }
-
-        if (finalPhone.length < 10) {
-          AppComponents.showSnackBar(context, 'يرجى إدخال رقم هاتف صحيح (يجب أن يبدأ بكود الدولة)', isError: true);
-          return;
-        }
-        phone = finalPhone;
-        email = '$phone@works.com';
-        debugPrint('📞 Sending phone to Firebase: $phone (length: ${phone.length})');
-      } else {
-        email = _emailController.text.trim();
-        phone = '';
+      String phoneInput = _phoneController.text.trim();
+      String finalPhone = phoneInput;
+      if (finalPhone.startsWith('0')) {
+        finalPhone = '+964${finalPhone.substring(1)}';
+      } else if (!finalPhone.startsWith('+')) {
+        finalPhone = '+964$finalPhone';
       }
+
+      if (finalPhone.length < 10) {
+        AppComponents.showSnackBar(context, 'يرجى إدخال رقم هاتف صحيح (يجب أن يبدأ بكود الدولة)', isError: true);
+        return;
+      }
+      String phone = finalPhone;
+      String email = '$phone@works.com';
+      debugPrint('📞 Sending phone to Firebase: $phone (length: ${phone.length})');
 
       context.read<AuthCubit>().sendOtpForRegistration(
         name: _nameController.text,
@@ -614,10 +602,7 @@ class _RegisterPageState extends State<RegisterPage> {
       body: BlocListener<AuthCubit, AuthState>(
         listener: (context, state) {
           if (state is AuthRegistrationSuccess) {
-            final isEmail = !_isPhoneRegistration;
-            final message = isEmail 
-                ? 'تم إنشاء الحساب بنجاح بانتظار التفعيل! يرجى مراجعة بريدك الإلكتروني حالاً (البريد الوارد أو مجلد غير المرغوب فيها/Spam) واضغط على رابط التفعيل.'
-                : 'تم تأكيد الهاتف وإنشاء الحساب بنجاح!';
+            const message = 'تم تأكيد الهاتف وإنشاء الحساب بنجاح!';
             
             AppComponents.showSnackBar(
               context,
@@ -688,119 +673,33 @@ class _RegisterPageState extends State<RegisterPage> {
                                   : null,
                             ),
                             const SizedBox(height: 16),
-                            
-                            // ── Premium Segmented Toggle ──
-                            Container(
-                              padding: const EdgeInsets.all(4),
-                              decoration: BoxDecoration(
-                                color: AppColors.primary.withOpacity(0.08),
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                              child: Row(
-                                children: [
-                                  Expanded(
-                                    child: GestureDetector(
-                                      onTap: () => setState(() => _isPhoneRegistration = true),
-                                      child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 200),
-                                        padding: const EdgeInsets.symmetric(vertical: 12),
-                                        decoration: BoxDecoration(
-                                          color: _isPhoneRegistration ? AppColors.primary : Colors.transparent,
-                                          borderRadius: BorderRadius.circular(10),
-                                          boxShadow: _isPhoneRegistration
-                                              ? [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))]
-                                              : [],
-                                        ),
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Icon(Icons.phone_rounded, size: 18, color: _isPhoneRegistration ? Colors.white : AppColors.primary),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              'رقم الهاتف',
-                                              style: GoogleFonts.cairo(
-                                                color: _isPhoneRegistration ? Colors.white : AppColors.primary,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                  Expanded(
-                                    child: GestureDetector(
-                                      onTap: () => setState(() => _isPhoneRegistration = false),
-                                      child: AnimatedContainer(
-                                        duration: const Duration(milliseconds: 200),
-                                        padding: const EdgeInsets.symmetric(vertical: 12),
-                                        decoration: BoxDecoration(
-                                          color: !_isPhoneRegistration ? AppColors.primary : Colors.transparent,
-                                          borderRadius: BorderRadius.circular(10),
-                                          boxShadow: !_isPhoneRegistration
-                                              ? [BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 8, offset: const Offset(0, 2))]
-                                              : [],
-                                        ),
-                                        child: Row(
-                                          mainAxisAlignment: MainAxisAlignment.center,
-                                          children: [
-                                            Icon(Icons.email_rounded, size: 18, color: !_isPhoneRegistration ? Colors.white : AppColors.primary),
-                                            const SizedBox(width: 8),
-                                            Text(
-                                              'الإيميل',
-                                              style: GoogleFonts.cairo(
-                                                color: !_isPhoneRegistration ? Colors.white : AppColors.primary,
-                                                fontWeight: FontWeight.bold,
-                                                fontSize: 14,
-                                              ),
-                                            ),
-                                          ],
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
                             const SizedBox(height: 16),
 
-                            if (_isPhoneRegistration)
-                              AppComponents.textField(
-                                controller: _phoneController,
-                                hint: 'رقم الهاتف (مثال: 07...)',
-                                prefixIcon: Icons.phone_rounded,
-                                keyboardType: TextInputType.phone,
-                                validator: (v) {
-                                  if (v == null || v.trim().isEmpty) {
-                                    return 'رقم الهاتف إلزامي';
-                                  }
-                                  String phone = v.trim();
-                                  if (!RegExp(r'^\d+$').hasMatch(phone)) {
-                                    return 'يجب أن يحتوي على أرقام فقط';
-                                  }
-                                  if (phone.startsWith('0') && phone.length != 11) {
-                                    return 'يجب أن يتكون من 11 رقماً';
-                                  }
-                                  if (!phone.startsWith('0') && phone.length != 10) {
-                                    return 'يجب أن يتكون من 10 أرقام';
-                                  }
-                                  if (!phone.startsWith('07') && !phone.startsWith('7')) {
-                                    return 'يجب أن يبدأ بـ 07 أو 7';
-                                  }
-                                  return null;
-                                },
-                              )
-                            else
-                              AppComponents.textField(
-                                controller: _emailController,
-                                hint: 'البريد الإلكتروني',
-                                prefixIcon: Icons.email_outlined,
-                                keyboardType: TextInputType.emailAddress,
-                                validator: (v) => (v == null || !v.contains('@'))
-                                    ? 'يرجى إدخال بريد إلكتروني صالح'
-                                    : null,
-                              ),
+                            AppComponents.textField(
+                              controller: _phoneController,
+                              hint: 'رقم الهاتف (مثال: 07...)',
+                              prefixIcon: Icons.phone_rounded,
+                              keyboardType: TextInputType.phone,
+                              validator: (v) {
+                                if (v == null || v.trim().isEmpty) {
+                                  return 'رقم الهاتف إلزامي';
+                                }
+                                String phone = v.trim();
+                                if (!RegExp(r'^\d+$').hasMatch(phone)) {
+                                  return 'يجب أن يحتوي على أرقام فقط';
+                                }
+                                if (phone.startsWith('0') && phone.length != 11) {
+                                  return 'يجب أن يتكون من 11 رقماً';
+                                }
+                                if (!phone.startsWith('0') && phone.length != 10) {
+                                  return 'يجب أن يتكون من 10 أرقام';
+                                }
+                                if (!phone.startsWith('07') && !phone.startsWith('7')) {
+                                  return 'يجب أن يبدأ بـ 07 أو 7';
+                                }
+                                return null;
+                              },
+                            ),
                           ],
                         ),
                       ).animate().fadeIn(delay: 100.ms, duration: 400.ms),

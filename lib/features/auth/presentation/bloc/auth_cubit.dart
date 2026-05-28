@@ -657,6 +657,23 @@ class AuthCubit extends Cubit<AuthState> {
     }
   }
 
+  Future<void> updateLocation(String address, double lat, double lng) async {
+    final currentState = state;
+    if (currentState is! AuthAuthenticated) return;
+    try {
+      final updatedUser = currentState.user.copyWith(
+        address: address,
+        latitude: lat,
+        longitude: lng,
+      );
+      emit(AuthAuthenticated(user: updatedUser, lastUpdate: DateTime.now()));
+      await _authRepository.updateUser(updatedUser);
+    } catch (e) {
+      debugPrint('Error updating location: $e');
+      throw Exception('فشل تحديث الموقع: ${e.toString()}');
+    }
+  }
+
   Future<List<String>> _uploadPortfolio(List<File> files) async {
     List<String> urls = [];
     for (var file in files) {

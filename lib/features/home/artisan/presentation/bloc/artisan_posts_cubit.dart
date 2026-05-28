@@ -6,6 +6,7 @@ import 'package:equatable/equatable.dart';
 import '../../../../auth/data/models/user_model.dart';
 import '../../../../posts/data/models/post_model.dart';
 import '../../../../posts/data/repositories/post_repository.dart';
+import '../../../../../core/constants/firebase_constants.dart';
 
 // --- State ---
 abstract class ArtisanPostsState extends Equatable {
@@ -90,7 +91,7 @@ class ArtisanPostsCubit extends Cubit<ArtisanPostsState> {
         post.latitude!,
         post.longitude!,
       );
-      return distanceKm <= 20.0;
+      return distanceKm <= NotificationConstants.artisanGeoRadiusKm;
     }).toList();
   }
 

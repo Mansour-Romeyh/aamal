@@ -95,12 +95,18 @@ class ChatRepository {
     required String senderId,
     required String receiverId,
     required String text,
+    bool isLocation = false,
+    double? latitude,
+    double? longitude,
   }) async {
     final message = MessageModel(
       id: '',
       senderId: senderId,
       text: text,
       timestamp: DateTime.now(),
+      isLocation: isLocation,
+      latitude: latitude,
+      longitude: longitude,
     );
 
     // إضافة الرسالة
